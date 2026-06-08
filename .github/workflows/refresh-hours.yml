@@ -1,0 +1,41 @@
+name: Refresh Alma Hours Cache
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Alma hours XML
+        env:
+          ALMA_API_KEY: ${{ secrets.ALMA_API_KEY }}
+        run: |
+          mkdir -p docs
+
+          curl --fail --silent --show-error \
+            "https://api-na.hosted.exlibrisgroup.com/almaws/v1/conf/libraries/MAIN/open-hours?from=today&apikey=${ALMA_API_KEY}" \
+            -o docs/open-hours.xml
+
+          test -s docs/open-hours.xml
+
+      - name: Commit cached file
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add docs/open-hours.xml
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Refresh Alma hours cache"
+            git push
+          fi
